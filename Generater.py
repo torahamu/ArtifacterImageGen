@@ -6,6 +6,12 @@ import os
 import itertools
 from collections import Counter
 import base64
+import time
+import asyncio
+
+from enkanetwork import EnkaNetworkAPI
+
+client = EnkaNetworkAPI()
 
 from PIL import ImageFile 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -13,9 +19,9 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 def culculate_op(data:dict):
 
     cwd = os.path.dirname(os.path.abspath(__file__))
-    with codecs.open(f'{cwd}/Assets/duplicate.json', 'r',encoding='utf-8') as f:
+    with codecs.open(f'{cwd}/Resources/Assets/duplicate.json', 'r',encoding='utf-8') as f:
         dup = json.load(f)
-    with codecs.open(f'{cwd}/Assets/subopM.json', 'r',encoding='utf-8') as f:
+    with codecs.open(f'{cwd}/Resources/Assets/subopM.json', 'r',encoding='utf-8') as f:
         mapping = json.load(f)
 
     res = [None,None,None,None]
@@ -222,33 +228,33 @@ def generation(data):
 
 
     cwd = os.path.abspath(os.path.dirname(__file__))
-    config_font = lambda size : ImageFont.truetype(f'{cwd}/Assets/ja-jp.ttf',size)
+    config_font = lambda size : ImageFont.truetype(f'{cwd}/Resources/Assets/ja-jp.ttf',size)
     
-    Base = Image.open(f'{cwd}/Base/{element}.png')
+    Base = Image.open(f'{cwd}/Resources/Base/{element}.png')
     
     
     #キャラクター
     CharacterCostume = CharacterData.get('Costume')
     if CharacterName in ['蛍','空']:
-        CharacterImage = Image.open(f'{cwd}/character/{CharacterName}({element})/avatar.png').convert("RGBA")
+        CharacterImage = Image.open(f'{cwd}/Resources/character/{CharacterName}({element})/avatar.png').convert("RGBA")
     else:
         if CharacterCostume:
-            CharacterImage = Image.open(f'{cwd}/character/{CharacterName}/{CharacterCostume}.png').convert("RGBA")
+            CharacterImage = Image.open(f'{cwd}/Resources/character/{CharacterName}/{CharacterCostume}.png').convert("RGBA")
         else:
-            CharacterImage = Image.open(f'{cwd}/character/{CharacterName}/avatar.png').convert("RGBA")
+            CharacterImage = Image.open(f'{cwd}/Resources/character/{CharacterName}/avatar.png').convert("RGBA")
             
     
     
-    Shadow = Image.open(f'{cwd}/Assets/shadow.png').resize(Base.size)
+    Shadow = Image.open(f'{cwd}/Resources/Assets/shadow.png').resize(Base.size)
     CharacterImage = CharacterImage.crop((289,0,1728,1024))
     CharacterImage = CharacterImage.resize((int(CharacterImage.width*0.75), int(CharacterImage.height*0.75)))
     
     CharacterAvatarMask = CharacterImage.copy()
     
     if CharacterName == 'アルハイゼン':
-        CharacterAvatarMask2 = Image.open(f'{cwd}/Assets/Alhaitham.png').convert('L').resize(CharacterImage.size)
+        CharacterAvatarMask2 = Image.open(f'{cwd}/Resources/Assets/Alhaitham.png').convert('L').resize(CharacterImage.size)
     else:
-        CharacterAvatarMask2 = Image.open(f'{cwd}/Assets/CharacterMask.png').convert('L').resize(CharacterImage.size)
+        CharacterAvatarMask2 = Image.open(f'{cwd}/Resources/Assets/CharacterMask.png').convert('L').resize(CharacterImage.size)
     CharacterImage.putalpha(CharacterAvatarMask2)
     
     CharacterPaste = Image.new("RGBA",Base.size,(255,255,255,0))
@@ -259,7 +265,7 @@ def generation(data):
     
     
     #武器
-    Weapon = Image.open(f'{cwd}/weapon/{WeaponName}.png').convert("RGBA").resize((128,128))
+    Weapon = Image.open(f'{cwd}/Resources/weapon/{WeaponName}.png').convert("RGBA").resize((128,128))
     WeaponPaste = Image.new("RGBA",Base.size,(255,255,255,0))
     
     WeaponMask = Weapon.copy()
@@ -267,7 +273,7 @@ def generation(data):
     
     Base = Image.alpha_composite(Base,WeaponPaste)
     
-    WeaponRImage = Image.open(f'{cwd}/Assets/Rarelity/{WeaponRarelity}.png').convert("RGBA")
+    WeaponRImage = Image.open(f'{cwd}/Resources/Assets/Rarelity/{WeaponRarelity}.png').convert("RGBA")
     WeaponRImage = WeaponRImage.resize((int(WeaponRImage.width*0.97),int(WeaponRImage.height*0.97)))
     WeaponRPaste = Image.new("RGBA",Base.size,(255,255,255,0))
     WeaponRMask = WeaponRImage.copy()
@@ -276,13 +282,13 @@ def generation(data):
     Base = Image.alpha_composite(Base,WeaponRPaste)
     
     #天賦
-    TalentBase = Image.open(f'{cwd}/Assets/TalentBack.png')
+    TalentBase = Image.open(f'{cwd}/Resources/Assets/TalentBack.png')
     TalentBasePaste = Image.new("RGBA",Base.size,(255,255,255,0))
     TalentBase = TalentBase.resize((int(TalentBase.width/1.5),int(TalentBase.height/1.5)))
     
     for i,t in enumerate(['通常','スキル',"爆発"]):
         TalentPaste = Image.new("RGBA",TalentBase.size,(255,255,255,0))
-        Talent = Image.open(f'{cwd}/character/{CharacterName}/{t}.png').resize((50,50)).convert('RGBA')
+        Talent = Image.open(f'{cwd}/Resources/character/{CharacterName}/{t}.png').resize((50,50)).convert('RGBA')
         TalentMask = Talent.copy()
         TalentPaste.paste(Talent,(TalentPaste.width//2-25,TalentPaste.height//2-25),mask=TalentMask)
         
@@ -292,8 +298,8 @@ def generation(data):
     Base = Image.alpha_composite(Base,TalentBasePaste)
     
     #凸
-    CBase = Image.open(f'{cwd}/命の星座/{element}.png').resize((90,90)).convert('RGBA')
-    Clock = Image.open(f'{cwd}/命の星座/{element}LOCK.png').resize((90,90)).convert('RGBA')
+    CBase = Image.open(f'{cwd}/Resources/命の星座/{element}.png').resize((90,90)).convert('RGBA')
+    Clock = Image.open(f'{cwd}/Resources/命の星座/{element}LOCK.png').resize((90,90)).convert('RGBA')
     ClockMask = Clock.copy()
     
     CPaste = Image.new("RGBA",Base.size,(255,255,255,0))
@@ -301,7 +307,7 @@ def generation(data):
         if c > CharacterConstellations:
             CPaste.paste(Clock,(666,-10+c*93),mask=ClockMask)
         else:
-            CharaC = Image.open(f'{cwd}/character/{CharacterName}/{c}.png').convert("RGBA").resize((45,45))
+            CharaC = Image.open(f'{cwd}/Resources/character/{CharacterName}/{c}.png').convert("RGBA").resize((45,45))
             CharaCPaste = Image.new("RGBA",CBase.size,(255,255,255,0))
             CharaCMask = CharaC.copy()
             CharaCPaste.paste(CharaC,(int(CharaCPaste.width/2)-25,int(CharaCPaste.height/2)-23),mask=CharaCMask)
@@ -317,7 +323,7 @@ def generation(data):
     friendshiplength = D.textlength(str(FriendShip),font=config_font(25))
     D.text((35,75),"Lv."+str(CharacterLevel),font=config_font(25))
     D.rounded_rectangle((35+levellength+5,74,77+levellength+friendshiplength,102),radius=2,fill="black")
-    FriendShipIcon = Image.open(f'{cwd}/Assets/Love.png').convert("RGBA")
+    FriendShipIcon = Image.open(f'{cwd}/Resources/Assets/Love.png').convert("RGBA")
     FriendShipIcon = FriendShipIcon.resize((int(FriendShipIcon.width*(24/FriendShipIcon.height)),24))
     Fmask = FriendShipIcon.copy()
     Base.paste(FriendShipIcon,(42+int(levellength),76),mask=Fmask)
@@ -343,7 +349,7 @@ def generation(data):
         except:
             i = 7
             D.text((844,67+i*70),k,font=config_font(26))
-            opicon = Image.open(f'{cwd}/emotes/{k}.png').resize((40,40))
+            opicon = Image.open(f'{cwd}/Resources/emotes/{k}.png').resize((40,40))
             oppaste = Image.new('RGBA',Base.size,(255,255,255,0))
             opmask = opicon.copy()
             oppaste.paste(opicon,(789,65+i*70))
@@ -369,7 +375,7 @@ def generation(data):
     D.text((1584,82),f'Lv.{WeaponLevel}',font=config_font(24))
     
 
-    BaseAtk = Image.open(f'{cwd}/emotes/基礎攻撃力.png').resize((23,23))
+    BaseAtk = Image.open(f'{cwd}/Resources/emotes/基礎攻撃力.png').resize((23,23))
     BaseAtkmask = BaseAtk.copy()
     Base.paste(BaseAtk,(1600,120),mask=BaseAtkmask)
     D.text((1623,120),f'基礎攻撃力  {WeaponBaseATK}',font=config_font(23))
@@ -381,7 +387,7 @@ def generation(data):
         "HPパーセンテージ":"HP%",
     }
     if WeaponSubOPKey != None:
-        BaseAtk = Image.open(f'{cwd}/emotes/{WeaponSubOPKey}.png').resize((23,23))
+        BaseAtk = Image.open(f'{cwd}/Resources/emotes/{WeaponSubOPKey}.png').resize((23,23))
         BaseAtkmask = BaseAtk.copy()
         Base.paste(BaseAtk,(1600,155),mask=BaseAtkmask)
         
@@ -398,13 +404,13 @@ def generation(data):
     D.text((1867-blen,585),f'{ScoreCVBasis}換算',font=config_font(24))
     
     if ScoreTotal >= 220:
-        ScoreEv =Image.open(f'{cwd}/artifactGrades/SS.png')
+        ScoreEv =Image.open(f'{cwd}/Resources/artifactGrades/SS.png')
     elif ScoreTotal >= 200:
-        ScoreEv =Image.open(f'{cwd}/artifactGrades/S.png')
+        ScoreEv =Image.open(f'{cwd}/Resources/artifactGrades/S.png')
     elif ScoreTotal >= 180:
-        ScoreEv =Image.open(f'{cwd}/artifactGrades/A.png')
+        ScoreEv =Image.open(f'{cwd}/Resources/artifactGrades/A.png')
     else:
-        ScoreEv =Image.open(f'{cwd}/artifactGrades/B.png')
+        ScoreEv =Image.open(f'{cwd}/Resources/artifactGrades/B.png')
     
     ScoreEv = ScoreEv.resize((ScoreEv.width//8,ScoreEv.height//8))
     EvMask = ScoreEv.copy()
@@ -420,13 +426,13 @@ def generation(data):
             continue
         atftype.append(details['type'])
         PreviewPaste = Image.new('RGBA',Base.size,(255,255,255,0))
-        Preview = Image.open(f'{cwd}/Artifact/{details["type"]}/{parts}.png').resize((256,256))
+        Preview = Image.open(f'{cwd}/Resources/Artifact/{details["type"]}/{parts}.png').resize((256,256))
         enhancer = ImageEnhance.Brightness(Preview)
         Preview = enhancer.enhance(0.6)
         Preview= Preview.resize((int(Preview.width*1.3),int(Preview.height*1.3)))
         Pmask1 = Preview.copy()
         
-        Pmask = Image.open(f'{cwd}/Assets/ArtifactMask.png').convert('L').resize(Preview.size)
+        Pmask = Image.open(f'{cwd}/Resources/Assets/ArtifactMask.png').convert('L').resize(Preview.size)
         Preview.putalpha(Pmask)
         if parts in ['flower','crown']:
             PreviewPaste.paste(Preview,(-37+373*i,570),mask=Pmask1)
@@ -441,7 +447,7 @@ def generation(data):
         
         mainoplen = D.textlength(optionmap.get(mainop) or mainop,font=config_font(29))
         D.text((375+i*373-int(mainoplen),655),optionmap.get(mainop) or mainop,font=config_font(29))
-        MainIcon = Image.open(f'{cwd}/emotes/{mainop}.png').convert("RGBA").resize((35,35))
+        MainIcon = Image.open(f'{cwd}/Resources/emotes/{mainop}.png').convert("RGBA").resize((35,35))
         MainMask = MainIcon.copy()
         Base.paste(MainIcon,(340+i*373-int(mainoplen),655),mask=MainMask)
         
@@ -475,7 +481,7 @@ def generation(data):
                 D.text((79+373*i,811+50*a),optionmap.get(SubOP) or SubOP,font=config_font(25),fill=(255,255,255,190))
             else:
                 D.text((79+373*i,811+50*a),optionmap.get(SubOP) or SubOP,font=config_font(25))
-            SubIcon = Image.open(f'{cwd}/emotes/{SubOP}.png').resize((30,30))
+            SubIcon = Image.open(f'{cwd}/Resources/emotes/{SubOP}.png').resize((30,30))
             SubMask = SubIcon.copy()
             Base.paste(SubIcon,(44+373*i,811+50*a),mask=SubMask)
             if SubOP in disper:
@@ -531,13 +537,13 @@ def generation(data):
         }
         
         if Score >= PointRefer[parts]['SS']:
-            ScoreImage =Image.open(f'{cwd}/artifactGrades/SS.png')
+            ScoreImage =Image.open(f'{cwd}/Resources/artifactGrades/SS.png')
         elif Score >= PointRefer[parts]['S']:
-            ScoreImage =Image.open(f'{cwd}/artifactGrades/S.png')
+            ScoreImage =Image.open(f'{cwd}/Resources/artifactGrades/S.png')
         elif Score >= PointRefer[parts]['A']:
-            ScoreImage =Image.open(f'{cwd}/artifactGrades/A.png')
+            ScoreImage =Image.open(f'{cwd}/Resources/artifactGrades/A.png')
         else:
-            ScoreImage =Image.open(f'{cwd}/artifactGrades/B.png')
+            ScoreImage =Image.open(f'{cwd}/Resources/artifactGrades/B.png')
             
         ScoreImage = ScoreImage.resize((ScoreImage.width//11,ScoreImage.height//11))
         SCMask = ScoreImage.copy()
@@ -555,29 +561,20 @@ def generation(data):
             D.rounded_rectangle((1818,263,1862,288),1,'black')
             D.text((1831,265),str(q),font=config_font(19))
             
-    premium = read_json(f'{cwd}/Assets/premium.json')
+    premium = read_json(f'{cwd}/Resources/Assets/premium.json')
     user_badge = premium.get(f'{data.get("uid")}')
     if user_badge:
         for i,b in enumerate(user_badge):
-            badge = Image.open(f'{cwd}/badge/{b}.png').convert('RGBA').resize((38,38))
+            badge = Image.open(f'{cwd}/Resources/badge/{b}.png').convert('RGBA').resize((38,38))
             badge_mask = badge.copy()
             
             Base.paste(badge,(1843-i*45,533),mask=badge_mask)
             
-    Base.show()
-    Base.save(f'{cwd}/Tests/Image.png')
-            
-        
-            
-        
-        
-        
-    
-    
+#    Base.show()
+#    Base.save(f'{cwd}/Tests/Image.png')
+
     return pil_to_base64(Base,format='png')
-        
-    
-    
+
 def pil_to_base64(img, format="jpeg"):
     buffer = BytesIO()
     img.save(buffer, format)
@@ -585,7 +582,38 @@ def pil_to_base64(img, format="jpeg"):
 
     return img_str
 
+async def main():
+    async with client:
+        await client.set_language("jp")
+        data = await client.fetch_user_by_uid(800033284)
+        print("=== Player Info ===")
+        print(f"プレイヤー名: {data.player.nickname}")
+        print(f"冒険者ランク： {data.player.level}")
+        print(f"アイコン: {data.player.avatar.icon.url}")
+        print(f"説明: {data.player.signature}")
+        print(f"アチーブ数: {data.player.achievement}")
+        print(f"螺旋: {data.player.abyss_floor} - {data.player.abyss_room}")
+        print(f"Cache timeout: {data.ttl}")
+        print("=== Characters ===")
+        for character in data.characters:
+            print(f"ID: {character.id}")
+            print(f"キャラ名: {character.name}")
+            print(f"レベル: {character.level} / {character.max_level}")
+            print(f"レア: {character.rarity}")
+            print(f"属性: {character.element}")
+            print(f"好感度: {character.friendship_level}")
+            print(f"突破: {'⭐'*character.ascension}")
+            print(f"凸: C{character.constellations_unlocked}")
+            print(f"経験値: {character.xp}")
+            print(f"アイコン: {character.image.icon.url}")
+            print(f"横アイコン: {character.image.side.url}")
+            print(f"ガチャ絵: {character.image.banner.url}")
+            print(f"カードアイコン: {character.image.card.url}")
+            print("="*18)
 
+start_time = time.time()
+#generation(read_json('data.json'))
 
-
-generation(read_json('data.json'))
+asyncio.run(main())
+end_time = time.time()
+print("実行時間：", end_time - start_time, "秒")
