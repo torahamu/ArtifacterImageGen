@@ -1,3 +1,4 @@
+import math
 import psutil
 from cachetools import TTLCache
 from functools import partial
@@ -157,7 +158,7 @@ async def status_text(character, BaseImage):
     def status_text_sub(i, parameter, D):
         #{stat[1].to_rounded() if isinstance(stat[1], Stats) else stat[1].to_percentage_symbol()}
         val = getattr(character.stats, parameter)
-        str = val.to_rounded() if isinstance(val, Stats) else val.to_percentage_symbol()
+        str = math.floor(val.value) if isinstance(val, Stats) else val.to_percentage_symbol()
         if isinstance(str, (int, float)):
             statelen = D.textlength(format(str,','),config_font(26))
             D.text((1360-statelen,67+i*70),format(str,','),font=config_font(26))
@@ -180,7 +181,8 @@ async def status_text(character, BaseImage):
         }
         max_prop = max(prop_dict, key=prop_dict.get)
         if prop_dict[max_prop] == 0:
-            max_prop = f"FIGHT_PROP_{character.element.upper()}_ADD_HURT"
+            #max_prop = f"FIGHT_PROP_{character.element.upper()}_ADD_HURT"
+            max_prop = f"FIGHT_PROP_ELEC_ADD_HURT"
 
     max_prop_text = FIGHT_PROPJP.get(max_prop)
 
@@ -215,7 +217,8 @@ async def status_info(character, BaseImage):
         #{FIGHT_PROPJP.get(max_prop)}
         max_prop = max(prop_dict, key=prop_dict.get)
         if prop_dict[max_prop] == 0:
-            max_prop = f"FIGHT_PROP_{character.element.upper()}_ADD_HURT"
+            #max_prop = f"FIGHT_PROP_{character.element.upper()}_ADD_HURT"
+            max_prop = f"FIGHT_PROP_ELEC_ADD_HURT"
 
     max_prop_text = FIGHT_PROPJP.get(max_prop)
     opicon = Image.open(f'{cwd}/Resources/emotes/{max_prop_text}.png').resize((40,40))
@@ -391,15 +394,26 @@ async def score_calc(artifact_value_dict, type):
         score += float(artifact_value_dict['会心率'])*2
         score += float(artifact_value_dict['会心ダメージ'])/2
         score += float(artifact_value_dict['元素熟知'])/2
-    return round(score, 1)
+    return math.floor(score * 10) / 10
 
 async def score_text(character, BaseImage, type):
     ScoreTextImage = Image.new('RGBA',BaseImage.size,(255,255,255,0))
     D = ImageDraw.Draw(ScoreTextImage)
 
     sumscore = 0.0
+    artifact_sumvalue_dict = {k: 0.0 for k in [
+        "HP",
+        "HPパーセンテージ",
+        "攻撃力",
+        "攻撃力パーセンテージ",
+        "防御力",
+        "防御力パーセンテージ",
+        "会心率",
+        "会心ダメージ",
+        "元素チャージ効率",
+        "元素熟知",
+        ]}
     for i, artifact in enumerate(filter(lambda x: x.type == EquipmentsType.ARTIFACT, character.equipments)):
-        artifact_value_dict = dict.fromkeys(["会心率", "会心ダメージ", "攻撃力パーセンテージ", "防御力パーセンテージ", "元素チャージ効率", "HPパーセンテージ", "元素熟知"], 0.0)
         artifact_value_dict = {k: 0.0 for k in [
             "HP",
             "HPパーセンテージ",
@@ -421,8 +435,10 @@ async def score_text(character, BaseImage, type):
             SubVal = substate.value
             if SubOP not in artifact_value_dict:
                 artifact_value_dict[SubOP] = SubVal
+                artifact_sumvalue_dict[SubOP] = SubVal
             else:
                 artifact_value_dict[SubOP] += SubVal
+                artifact_sumvalue_dict[SubOP] += SubVal
 
         score = await score_calc(artifact_value_dict, type)
         sumscore += score
@@ -445,9 +461,44 @@ async def score_text(character, BaseImage, type):
         
         ScoreTextImage.paste(ScoreImage,(85+373*i,1013),mask=SCMask)
 
-    sumscore = round(sumscore, 1)
-    ScoreLen = D.textlength(f'{sumscore}',config_font(75))
-    D.text((1652-ScoreLen//2,420),str(sumscore),font=config_font(75))
+    sumscore = math.floor(sumscore * 10) / 10
+    if type == 'HP':
+        sumscore_label1 = 'HP%'
+        sumscore_text1 = math.floor(artifact_sumvalue_dict['HPパーセンテージ'] * 10) / 10
+    elif type == '攻撃':
+        sumscore_label1 = '攻撃%'
+        sumscore_text1 = math.floor(artifact_sumvalue_dict['攻撃力パーセンテージ'] * 10) / 10
+    elif type == '防御':
+        sumscore_label1 = '防御%'
+        sumscore_text1 = math.floor(artifact_sumvalue_dict['防御力パーセンテージ'] * 10) / 10
+    elif type == '元素チャージ効率':
+        sumscore_label1 = '元素チャージ効率'
+        sumscore_text1 = math.floor(artifact_sumvalue_dict['元素チャージ効率'] * 10) / 10
+    elif type == '元素熟知':
+        sumscore_label1 = '元素熟知'
+        sumscore_text1 = math.floor(artifact_sumvalue_dict['元素熟知'] * 10) / 10
+    sumscore_label2 = '会心率'
+    sumscore_label3 = '会心ダメージ'
+    sumscore_text2 = math.floor(artifact_sumvalue_dict['会心率'] * 10) / 10
+    sumscore_text3 = math.floor(artifact_sumvalue_dict['会心ダメージ'] * 10) / 10
+
+    sumscore_labelLen1 = D.textlength(f'{sumscore_label1}',config_font(20))
+    D.text((1583-sumscore_labelLen1,400),sumscore_label1,font=config_font(20))
+    ScoreLen1 = D.textlength(f'{str(sumscore_text1)}',config_font(20))
+    D.text((1650-ScoreLen1,400),str(sumscore_text1),font=config_font(20))
+
+    sumscore_labelLen2 = D.textlength(f'{sumscore_label2}',config_font(20))
+    D.text((1583-sumscore_labelLen2,445),sumscore_label2,font=config_font(20))
+    ScoreLen2 = D.textlength(f'{str(sumscore_text2)}',config_font(20))
+    D.text((1650-ScoreLen2,445),str(sumscore_text2),font=config_font(20))
+
+    sumscore_labelLen3 = D.textlength(f'{sumscore_label3}',config_font(20))
+    D.text((1583-sumscore_labelLen3,490),sumscore_label3,font=config_font(20))
+    ScoreLen3 = D.textlength(f'{str(sumscore_text3)}',config_font(20))
+    D.text((1650-ScoreLen3,490),str(sumscore_text3),font=config_font(20))
+
+    ScoreLen = D.textlength(f'{sumscore}',config_font(64))
+    D.text((1772-ScoreLen//2,420),str(sumscore),font=config_font(64))
     blen = D.textlength(f'{type}換算',font=config_font(24))
     D.text((1867-blen,585),f'{type}換算',font=config_font(24))
     
@@ -467,7 +518,7 @@ async def score_text(character, BaseImage, type):
 
     return ScoreTextImage
 
-async def artifact_text(character, BaseImage):
+async def artifact_text(character, BaseImage, type):
     ArtifactTextImage = Image.new('RGBA',BaseImage.size,(255,255,255,0))
     D = ImageDraw.Draw(ArtifactTextImage)
 
@@ -494,24 +545,113 @@ async def artifact_text(character, BaseImage):
 
         for a, substate in enumerate(artifact.detail.substats):
 
+            fill_default = (255, 255, 255)
+            fill_usui = (255, 255, 255, 196)
+            fill_strong = (0, 255, 191, 255)
+            fill_color = fill_default
             SubOP = substate.name
             if SubOP in ['HP','攻撃力','防御力'] and substate.type == DigitType.PERCENT:
                 SubOP = f"{SubOP}パーセンテージ"
+            elif SubOP in ['HP','攻撃力','防御力'] and substate.type == DigitType.NUMBER:
+                fill_color = fill_usui
+            if type == 'HP' and SubOP in ['HPパーセンテージ','会心率','会心ダメージ']:
+                fill_color = fill_strong
+            elif type == '攻撃' and SubOP in ['攻撃力パーセンテージ','会心率','会心ダメージ']:
+                fill_color = fill_strong
+            elif type == '防御' and SubOP in ['防御力パーセンテージ','会心率','会心ダメージ']:
+                fill_color = fill_strong
+            elif type == '元素チャージ効率' and SubOP in ['元素チャージ効率','会心率','会心ダメージ']:
+                fill_color = fill_strong
+            elif type == '元素熟知' and SubOP in ['元素熟知','会心率','会心ダメージ']:
+                fill_color = fill_strong
             SubVal = format(substate.value,",")
             SubVal = f"{SubVal}{'%' if substate.type == DigitType.PERCENT else ''}"
-            if SubOP in ['HP','攻撃力','防御力']:
-                D.text((79+373*i,811+50*a),optionmap.get(SubOP) or SubOP,font=config_font(25),fill=(255,255,255,190))
-            else:
-                D.text((79+373*i,811+50*a),optionmap.get(SubOP) or SubOP,font=config_font(25))
+            D.text((79+373*i,811+50*a),optionmap.get(SubOP) or SubOP,font=config_font(25),fill=fill_color)
+            #if SubOP in ['HP','攻撃力','防御力']:
+            #    D.text((79+373*i,811+50*a),optionmap.get(SubOP) or SubOP,font=config_font(25),fill=(255,255,255,190))
+            #else:
+            #    D.text((79+373*i,811+50*a),optionmap.get(SubOP) or SubOP,font=config_font(25),fill=(255,255,255))
             SubIcon = Image.open(f'{cwd}/Resources/emotes/{SubOP}.png').resize((30,30))
             SubMask = SubIcon.copy()
             ArtifactTextImage.paste(SubIcon,(44+373*i,811+50*a),mask=SubMask)
 
             SubSize = D.textlength(SubVal,config_font(25))
-            if SubOP in ['防御力','攻撃力','HP']:
-                D.text((375+i*373-SubSize,811+50*a),SubVal,font=config_font(25),fill=(255,255,255,190))
-            else:
-                D.text((375+i*373-SubSize,811+50*a),SubVal,font=config_font(25),fill=(255,255,255))
+            D.text((375+i*373-SubSize,811+50*a),SubVal,font=config_font(25),fill=fill_color)
+            #if SubOP in ['防御力','攻撃力','HP']:
+            #    D.text((375+i*373-SubSize,811+50*a),SubVal,font=config_font(25),fill=(255,255,255,190))
+            #else:
+            #    D.text((375+i*373-SubSize,811+50*a),SubVal,font=config_font(25),fill=(255,255,255))
+        if artifact.detail.artifact_name_set not in artifact_count_dict:
+            artifact_count_dict[artifact.detail.artifact_name_set] = 1
+        else:
+            artifact_count_dict[artifact.detail.artifact_name_set] += 1
+
+    artifact_count_dict_filtered = {k: v for k, v in artifact_count_dict.items() if v >= 2}
+    for i,(n,q) in enumerate(artifact_count_dict_filtered.items()):
+        if len(artifact_count_dict_filtered) == 2:
+            D.text((1536,243+i*35),n,fill=(0,255,0),font=config_font(23))
+            D.rounded_rectangle((1818,243+i*35,1862,266+i*35),1,'black')
+            D.text((1835,243+i*35),str(q),font=config_font(19))
+        if len(artifact_count_dict_filtered) == 1:
+            D.text((1536,263),n,fill=(0,255,0),font=config_font(23))
+            D.rounded_rectangle((1818,263,1862,288),1,'black')
+            D.text((1831,265),str(q),font=config_font(19))
+
+    return ArtifactTextImage
+
+async def artifact_text_notype(character, BaseImage):
+    ArtifactTextImage = Image.new('RGBA',BaseImage.size,(255,255,255,0))
+    D = ImageDraw.Draw(ArtifactTextImage)
+
+    artifact_count_dict = {}
+    for i, artifact in enumerate(filter(lambda x: x.type == EquipmentsType.ARTIFACT, character.equipments)):
+        # メインオプション
+        main_op_name = artifact.detail.mainstats.name
+        if main_op_name in ['HP','攻撃力','防御力'] and artifact.detail.mainstats.type == DigitType.PERCENT:
+            main_op_name = f"{main_op_name}パーセンテージ"
+        mainoplen = D.textlength(optionmap.get(main_op_name) or main_op_name,font=config_font(29))
+        D.text((375+i*373-int(mainoplen),655),optionmap.get(main_op_name) or main_op_name,font=config_font(29))
+        MainIcon = Image.open(f'{cwd}/Resources/emotes/{main_op_name}.png').convert("RGBA").resize((35,35))
+        MainMask = MainIcon.copy()
+        ArtifactTextImage.paste(MainIcon,(340+i*373-int(mainoplen),655),mask=MainMask)
+        main_op_val = format(artifact.detail.mainstats.value,",")
+        main_op_val = f"{main_op_val}{'%' if artifact.detail.mainstats.type == DigitType.PERCENT else ''}"
+
+        mainvsize = D.textlength(main_op_val,config_font(49))
+        D.text((375+i*373-mainvsize,690),main_op_val,font=config_font(49))
+
+        levlen = D.textlength(f'+{artifact.level}',config_font(21))
+        D.rounded_rectangle((373+i*373-int(levlen),748,375+i*373,771),fill='black',radius=2)
+        D.text((374+i*373-levlen,749),f'+{artifact.level}',font=config_font(21))
+
+        for a, substate in enumerate(artifact.detail.substats):
+
+            fill_default = (255, 255, 255)
+            fill_usui = (255, 255, 255, 196)
+            fill_strong = (0, 255, 191, 255)
+            fill_color = fill_default
+            SubOP = substate.name
+            if SubOP in ['HP','攻撃力','防御力'] and substate.type == DigitType.PERCENT:
+                SubOP = f"{SubOP}パーセンテージ"
+            elif SubOP in ['HP','攻撃力','防御力'] and substate.type == DigitType.NUMBER:
+                fill_color = fill_usui
+            SubVal = format(substate.value,",")
+            SubVal = f"{SubVal}{'%' if substate.type == DigitType.PERCENT else ''}"
+            D.text((79+373*i,811+50*a),optionmap.get(SubOP) or SubOP,font=config_font(25),fill=fill_color)
+            #if SubOP in ['HP','攻撃力','防御力']:
+            #    D.text((79+373*i,811+50*a),optionmap.get(SubOP) or SubOP,font=config_font(25),fill=(255,255,255,190))
+            #else:
+            #    D.text((79+373*i,811+50*a),optionmap.get(SubOP) or SubOP,font=config_font(25),fill=(255,255,255))
+            SubIcon = Image.open(f'{cwd}/Resources/emotes/{SubOP}.png').resize((30,30))
+            SubMask = SubIcon.copy()
+            ArtifactTextImage.paste(SubIcon,(44+373*i,811+50*a),mask=SubMask)
+
+            SubSize = D.textlength(SubVal,config_font(25))
+            D.text((375+i*373-SubSize,811+50*a),SubVal,font=config_font(25),fill=fill_color)
+            #if SubOP in ['防御力','攻撃力','HP']:
+            #    D.text((375+i*373-SubSize,811+50*a),SubVal,font=config_font(25),fill=(255,255,255,190))
+            #else:
+            #    D.text((375+i*373-SubSize,811+50*a),SubVal,font=config_font(25),fill=(255,255,255))
         if artifact.detail.artifact_name_set not in artifact_count_dict:
             artifact_count_dict[artifact.detail.artifact_name_set] = 1
         else:
@@ -557,12 +697,12 @@ async def save_image(character, BaseImage, type):
     MixImage = Image.alpha_composite(MixImage,result_image)
     MixImage.save(f'{cwd}/Tests/{character.name}_{type}.png')
 
-async def process_item(character, BaseImage):
+async def process_item(character, BaseImage, type):
     if character.id == 10000005:
         character.name = f'空({elementjp.get(character.element)})'
     elif character.id == 10000007:
         character.name = f'蛍({elementjp.get(character.element)})'
-    print(f'{character.name}:開始')
+    print(f'{character.name} {type}:開始')
     start_time = time.time()
     result_images = await asyncio.gather(
         character_info(character, BaseImage),
@@ -571,7 +711,8 @@ async def process_item(character, BaseImage):
         constellation_info(character, BaseImage),
         status_info(character, BaseImage),
         artifact_info(character, BaseImage),
-        artifact_text(character, BaseImage),
+#        artifact_text_notype(character, BaseImage),
+        artifact_text(character, BaseImage, type),
         character_text(character, BaseImage),
         weapon_text(character, BaseImage),
         status_text(character, BaseImage),
@@ -582,14 +723,10 @@ async def process_item(character, BaseImage):
         MixImage = Image.alpha_composite(MixImage,result_image)
 #    MixImage.save(f'{cwd}/Tests/{character.name}.png')
     await asyncio.gather(
-        save_image(character, MixImage, 'HP'),
-        save_image(character, MixImage, '攻撃'),
-        save_image(character, MixImage, '防御'),
-        save_image(character, MixImage, '元素チャージ効率'),
-        save_image(character, MixImage, '元素熟知'),
+        save_image(character, MixImage, type)
     )
     end_time = time.time()
-    print(f'{character.name}:終了: {end_time - start_time}秒')
+    print(f'{character.name} {type}:終了: {end_time - start_time}秒')
 
     return character.name
 
@@ -600,12 +737,33 @@ async def main(uid):
         tasks = []
         for character in data.characters:
             BaseImage = image_dict[character.element.lower()]
-            tasks.append(process_item(character, BaseImage))
-        results = await asyncio.gather(*tasks)
-
+            tasks.append(process_item(character, BaseImage, 'HP'))
+            if len(tasks) == 8:
+                results = await asyncio.gather(*tasks)
+                tasks = []  # タスクリストをリセット
+            tasks.append(process_item(character, BaseImage, '攻撃'))
+            if len(tasks) == 8:
+                results = await asyncio.gather(*tasks)
+                tasks = []  # タスクリストをリセット
+            tasks.append(process_item(character, BaseImage, '防御'))
+            if len(tasks) == 8:
+                results = await asyncio.gather(*tasks)
+                tasks = []  # タスクリストをリセット
+            tasks.append(process_item(character, BaseImage, '元素チャージ効率'))
+            if len(tasks) == 8:
+                results = await asyncio.gather(*tasks)
+                tasks = []  # タスクリストをリセット
+            tasks.append(process_item(character, BaseImage, '元素熟知'))
+            if len(tasks) == 8:
+                results = await asyncio.gather(*tasks)
+                tasks = []  # タスクリストをリセット
+        if tasks:  # 未処理のタスクが残っている場合
+            results = await asyncio.gather(*tasks)
+            # 結果を処理する
 
 if __name__ == '__main__':
     uid = 800033284
+#    uid = 800886885
     process = psutil.Process()
     memory_usage = process.memory_info().rss / 1024 / 1024
 

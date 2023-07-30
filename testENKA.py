@@ -135,9 +135,9 @@ async def weapon_info(character):
 
 
 async def characters_info(data):
-    print(f"キャラ名: {data.characters[2].name}")
     print("=== Characters ===")
     for character in data.characters:
+        print(f"character: {character}")
         print(f"ID: {character.id}")
         print(f"キャラ名: {character.name}")
         print(f"レベル: {character.level} / {character.max_level}")
